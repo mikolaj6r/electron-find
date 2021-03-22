@@ -1,0 +1,129 @@
+const EventEmitter = require("events");
+const { ipcMain } = require("electron");
+
+const { print } = require("./lib/utils.js");
+
+const stopActions = ["clearSelection", "keepSelection", "activateSelection"];
+const wcs = Symbol("webContents");
+const opts = Symbol("options");
+const requestId = Symbol("requestId");
+const activeMatch = Symbol("activeMatch");
+const matches = Symbol("matches");
+const initd = Symbol("initd");
+const preText = Symbol("preText");
+
+class ElectronFindMain extends EventEmitter {
+  constructor(webContents, options = {}) {
+    super();
+    this[wcs] = webContents;
+    this[opts] = options;
+    this[requestId] = null;
+    this[activeMatch] = 0;
+    this[matches] = 0;
+    this[initd] = false;
+    this[preText] = "";
+
+    ipcMain.on("init-find", (event) => {
+      event.returnValue = this.initFind();
+    });
+
+    ipcMain.on("destroy-find", (event) => {
+      this.destroyFind();
+    });
+
+    ipcMain.on("is-finding", (event) => {
+      event.returnValue = this.isFinding();
+    });
+
+    ipcMain.on("start-find", (event, args) => {
+      this.startFind(...args);
+    });
+
+    ipcMain.on("find-next", (event, args) => {
+      this.findNext(...args);
+    });
+
+    ipcMain.on("stop-find", (event, args) => {
+      this.stopFind(args);
+    });
+  }
+  initFind() {
+    if (this[initd]) return false;
+    if (isWebContents.call(this)) {
+      bindFound.call(this);
+      return (this[initd] = true);
+    } else {
+      throw new Error("[Find] In need of a valid webContents !");
+    }
+  }
+  destroyFind() {
+    this[wcs] = null;
+    this[opts] = null;
+    this[requestId] = null;
+    this[activeMatch] = 0;
+    this[matches] = 0;
+    this[initd] = false;
+    this[preText] = "";
+  }
+  isFinding() {
+    return !!this[requestId];
+  }
+  startFind(text = "", forward = true, matchCase = false) {
+    if (!text) return;
+    this[activeMatch] = 0;
+    this[matches] = 0;
+    this[preText] = text;
+    this[requestId] = this[wcs].findInPage(this[preText], {
+      forward,
+      matchCase,
+    });
+    print(
+      `[Find] startFind text=${text} forward=${forward} matchCase=${matchCase}`
+    );
+  }
+  findNext(forward, matchCase = false) {
+    if (!this.isFinding()) throw new Error("Finding did not start yet !");
+    this[requestId] = this[wcs].findInPage(this[preText], {
+      forward,
+      matchCase,
+      findNext: true,
+    });
+    print(
+      `[Find] findNext text=${this[preText]} forward=${forward} matchCase=${matchCase}`
+    );
+  }
+  stopFind(action) {
+    stopActions.includes(action) ? "" : (action = "clearSelection");
+    this[wcs].stopFindInPage(action);
+    print(`[Find] stopFind action=${action}`);
+  }
+}
+function isWebContents() {
+  return (
+    this[wcs] &&
+    typeof this[wcs].findInPage === "function" &&
+    typeof this[wcs].stopFindInPage === "function"
+  );
+}
+function bindFound() {
+  this[wcs].on("found-in-page", (e, r) => {
+    onFoundInPage.call(this, r);
+  });
+}
+function onFoundInPage(result) {
+  print("[Find] onFoundInPage, ", result);
+  if (this[requestId] !== result.requestId) return;
+  typeof result.activeMatchOrdinal === "number"
+    ? (this[activeMatch] = result.activeMatchOrdinal)
+    : "";
+  typeof result.matches === "number" ? (this[matches] = result.matches) : "";
+  result.finalUpdate ? reportResult.call(this) : "";
+}
+function reportResult() {
+  this[wcs].send("result", [this[activeMatch], this[matches]]);
+  typeof this[opts].onResult === "function"
+    ? this[opts].onResult(this[activeMatch], this[matches])
+    : "";
+}
+
+module.exports = ElectronFindMain;

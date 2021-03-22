@@ -1,0 +1,25 @@
+{
+  "name": "@mikolaj6r/electron-find",
+  "version": "1.0.0",
+  "description": "Find all matches for the text in electron app",
+  "main": "main.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mikolaj6r/electron-find.git"
+  },
+  "keywords": [
+    "find",
+    "electron",
+    "search",
+    "match"
+  ],
+  "author": "mikolaj6r",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mikolaj6r/electron-find/issues"
+  },
+  "homepage": "https://github.com/TheoXiong/electron-find#readme",
+  "peerDependencies": {
+    "electron": "^2.0.0"
+  }
+}
