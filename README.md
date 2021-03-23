@@ -1,4 +1,4 @@
-# electron-secure-search
+# electron-find
 
 A fork of [electron-find](https://github.com/TheoXiong/electron-find) with modifications to separate main thread and renderer threads.
 
